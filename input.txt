@@ -41,4 +41,4 @@ procedure bsort {
     write temp;
 }
 
-
+i = 0;

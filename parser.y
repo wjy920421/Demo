@@ -9,6 +9,7 @@ extern int line_count;
  
 int parser(char * filename);
 void yyerror(const char *s);
+int error_count = 0;
 %}
 
 
@@ -78,6 +79,7 @@ void yyerror(const char *s);
 
 Procedure:
     PROCEDURE NAME LEFTBRACE Decls Stmts RIGHTBRACE
+//    | error { yyerrok; yyerror("Unexpected content after the procedure ends"); }
     ;
 
 Decls:
@@ -211,7 +213,10 @@ int parser(char * filename)
     }
     while (!feof(yyin));
 
-    printf("Success\n");
+    if (error_count == 0)
+        printf("\nSuccess\n");
+    else
+        printf("\n%d error%s generated\n", error_count, (error_count==1)? "": "s");
 
     return 0;
 }
@@ -220,7 +225,7 @@ int parser(char * filename)
 void yyerror(const char * s) 
 {
     fprintf(stderr, "Syntax error at line %d: %s\n", line_count, s);
-    exit(-1);
+    error_count++;
 }
 
 
