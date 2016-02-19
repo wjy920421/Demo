@@ -5,12 +5,15 @@
 extern int yylex();
 extern int yyparse();
 extern FILE * yyin;
+extern int line_count;
  
 int parser(char * filename);
 void yyerror(const char *s);
 %}
 
 
+
+%error-verbose
 
 %union
 {
@@ -68,6 +71,8 @@ void yyerror(const char *s);
 
 %nonassoc IFX
 %nonassoc ELSE
+
+
 
 %%
 
@@ -193,14 +198,20 @@ int parser(char * filename)
             return -1;
         }
         yyin = file;
+        printf("Loaded Demo program from: %s \n", filename);
+    }
+    else
+    {
+        printf("No file is specified. The program will read from stdin.\n");
     }
 
     do
     {
         yyparse();
-        printf("Success\n");
     }
     while (!feof(yyin));
+
+    printf("Success\n");
 
     return 0;
 }
@@ -208,7 +219,7 @@ int parser(char * filename)
 
 void yyerror(const char * s) 
 {
-    fprintf(stderr, "Parse error: %s\n", s);
+    fprintf(stderr, "Syntax error at line %d: %s\n", line_count, s);
     exit(-1);
 }
 
