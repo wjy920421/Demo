@@ -23,52 +23,54 @@ int error_count = 0;
     char * charconst;
 }
 
-%token <name> NAME
-%token <number> NUMBER
-%token <charconst> CHARCONST
+%token <name> NAME "name"
+%token <number> NUMBER "number"
+%token <charconst> CHARCONST "char const"
 
 /* Reserved words */
-%token AND
-%token BY
-%token CHAR
-%token ELSE
-%token FOR
-%token IF
-%token INT
-%token NOT
-%token OR
-%token PROCEDURE
-%token READ
-%token THEN
-%token TO
-%token WHILE
-%token WRITE
+%token AND "and(keyword)"
+%token BY "by(keyword)"
+%token CHAR "char(keyword)"
+%token ELSE "else(keyword)"
+%token FOR "for(keyword)"
+%token IF "if(keyword)"
+%token INT "int(keyword)"
+%token NOT "not(keyword)"
+%token OR "or(keyword)"
+%token PROCEDURE "procedure(keyword)"
+%token READ "read(keyword)"
+%token THEN "then(keyword)"
+%token TO "to(keyword)"
+%token WHILE "while(keyword)"
+%token WRITE "write(keyword)"
 
 /* Operators */
-%token OP_PLUS
-%token OP_MINUS
-%token OP_TIMES
-%token OP_DIVIDE
-%token OP_LESSTHAN
-%token OP_LESSTHANEQUALS
-%token OP_EQUALS
-%token OP_NOTEQUALS
-%token OP_GREATERTHAN
-%token OP_GREATERTHANEQUALS
+%token OP_PLUS "+"
+%token OP_MINUS "-"
+%token OP_TIMES "*"
+%token OP_DIVIDE "/"
+%token OP_LESSTHAN "<"
+%token OP_LESSTHANEQUALS "<="
+%token OP_EQUALS "=="
+%token OP_NOTEQUALS "!="
+%token OP_GREATERTHAN ">"
+%token OP_GREATERTHANEQUALS ">="
 
 /* Punctuation */
-%token COLON
-%token SEMICOLON
-%token COMMA
-%token BIND
-%token LEFTBRACE
-%token RIGHTBRACE
-%token LEFTBRACKET
-%token RIGHTBRACKET
-%token LEFTPARENTHESIS
-%token RIGHTPARENTHESIS
+%token COLON ":"
+%token SEMICOLON ";"
+%token COMMA ","
+%token BIND "="
+%token LEFTBRACE "{"
+%token RIGHTBRACE "}"
+%token LEFTBRACKET "["
+%token RIGHTBRACKET "]"
+%token LEFTPARENTHESIS "("
+%token RIGHTPARENTHESIS ")"
 
-%token OTHER
+%token OTHER "invalid expression"
+
+%token END 0 "end of file"
 
 %nonassoc IFX
 %nonassoc ELSE
@@ -77,9 +79,12 @@ int error_count = 0;
 
 %%
 
+Procedures:
+    Procedures Procedure
+    | Procedure
+
 Procedure:
     PROCEDURE NAME LEFTBRACE Decls Stmts RIGHTBRACE
-//    | error { yyerrok; yyerror("Unexpected content after the procedure ends"); }
     ;
 
 Decls:
@@ -129,6 +134,10 @@ Stmt:
     | IF LEFTPARENTHESIS Bool RIGHTPARENTHESIS THEN Stmt ELSE Stmt
     | READ Reference SEMICOLON
     | WRITE Expr SEMICOLON
+    | SEMICOLON { yyerror("syntax error, unexpected ;, empty statement"); }
+    | LEFTBRACE RIGHTBRACE { yyerror("syntax error, unexpected ;, empty statement list"); }
+    | error SEMICOLON
+    | error RIGHTBRACE
     ;
 
 Bool:
@@ -191,6 +200,8 @@ Exprs:
 
 int parser(char * filename)
 {
+    printf("\n");
+
     if (filename != NULL)
     {
         FILE * file = fopen(filename, "r");
@@ -214,9 +225,9 @@ int parser(char * filename)
     while (!feof(yyin));
 
     if (error_count == 0)
-        printf("\nSuccess\n");
+        printf("\nSuccess\n\n");
     else
-        printf("\n%d error%s generated\n", error_count, (error_count==1)? "": "s");
+        printf("\n%d error%s generated\n\n", error_count, (error_count==1)? "": "s");
 
     return 0;
 }
