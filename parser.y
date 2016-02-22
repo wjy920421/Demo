@@ -79,9 +79,9 @@ int error_count = 0;
 
 %%
 
-Procedures:
-    Procedures Procedure
-    | Procedure
+// Procedures:
+//     Procedures Procedure
+//     | Procedure
 
 Procedure:
     PROCEDURE NAME LEFTBRACE Decls Stmts RIGHTBRACE
