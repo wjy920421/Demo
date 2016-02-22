@@ -1,6 +1,13 @@
 Jingyu Wang (jw76)
 
 
+Code
+====
+demo.c      driver of the parser
+lexer.l     flex scanner
+parser.y    bison parser
+
+
 Build
 =====
 To build this program, simply run "make" in the project's root directory. The makefile is already provided in this project. 
@@ -10,6 +17,7 @@ To clean the project, run "make clean".
 Run
 ===
 After the program is built, an executable named "demo" will appear in the project's root directory. For the instuctions of how to use this program, use the option "-h". 
+
 
 Test
 ====
