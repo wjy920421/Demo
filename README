@@ -10,4 +10,8 @@ To clean the project, run "make clean".
 Run
 ===
 After the program is built, an executable named "demo" will appear in the project's root directory. For the instuctions of how to use this program, use the option "-h". 
+
+Test
+====
 A test script named "test.sh" is also provided. It will find all the ".demo" source files in the directory and parse them with the program. The parsing results will be printed to stdout. 
+Most test files are located inside "test_data". Two additional test programs, "test_program_1.demo" and "test_program_2.demo", are placed in the root directory. 

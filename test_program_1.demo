@@ -1,0 +1,21 @@
+// test DEMO program
+procedure program1 {
+    
+    int temp;
+    int num[1:100]; // array
+
+    read num; // read array
+
+    for i = 1 to 100 / 2 by 1
+    {
+        temp = num[i];
+        num[i] = num[101-i];
+        num[101-i] = temp;
+    }
+
+    write num; // write array
+}
+
+
+
+
