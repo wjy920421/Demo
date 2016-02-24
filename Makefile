@@ -1,5 +1,5 @@
 LEX = flex
-YACC = bison -d
+YACC = bison -d -v
 
 OS := $(shell uname)
 ifeq ($(OS), Darwin)
@@ -17,4 +17,4 @@ parser.tab.c parser.tab.h: parser.y
 lexer.c: lexer.l
 
 clean:
-	$(RM) *.o lexer.c parser.tab.c parser.tab.h demo
+	$(RM) *.o lexer.c parser.tab.c parser.tab.h parser.output demo

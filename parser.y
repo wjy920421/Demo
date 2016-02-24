@@ -88,12 +88,13 @@ Procedure:
     ;
 
 Decls:
-    Decls Decl SEMICOLON
-    | Decl SEMICOLON
+    Decls Decl
+    | Decl
     ;
 
 Decl:
-    Type SpecList
+    Type SpecList SEMICOLON
+    | Type error SEMICOLON
     ;
 
 Type:
