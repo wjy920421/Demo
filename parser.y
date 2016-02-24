@@ -95,6 +95,7 @@ Decls:
 Decl:
     Type SpecList SEMICOLON
     | Type error SEMICOLON
+    | NAME error SEMICOLON
     ;
 
 Type:
