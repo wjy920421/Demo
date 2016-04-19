@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include "parser.tab.h"
 
-#define YY_DECL extern int yylex()
 int line_count = 1;
+
+#define YY_DECL extern int yylex()
 %}
 
 
@@ -14,14 +15,14 @@ int line_count = 1;
 
 "and"           { return AND; }
 "by"            { return BY; }
-"char"          { yylval.name = strdup(yytext); return CHAR; }
+"char"          { yylval.str_val = strdup(yytext); return CHAR; }
 "else"          { return ELSE; }
 "for"           { return FOR; }
 "if"            { return IF; }
-"int"           { yylval.name = strdup(yytext); return INT; }
+"int"           { yylval.str_val = strdup(yytext); return INT; }
 "not"           { return NOT; }
 "or"            { return OR; }
-"procedure"     { return PROCEDURE; }
+"procedure"     { yylval.str_val = strdup(yytext); return PROCEDURE; }
 "read"          { return READ; }
 "then"          { return THEN; }
 "to"            { return TO; }
@@ -50,9 +51,9 @@ int line_count = 1;
 "("             { return LEFTPARENTHESIS; }
 ")"             { return RIGHTPARENTHESIS; }
 
-[A-Za-z][A-Za-z0-9]*            { yylval.name = strdup(yytext); return NAME; }
-[0-9]+                          { yylval.number = atoi(yytext); return NUMBER; }
-'((\\[aefnrtv])|[\x00-\x7F])'   { yylval.charconst = yytext[0]; return CHARCONST; }
+[A-Za-z][A-Za-z0-9]*            { yylval.str_val = strdup(yytext); return NAME; }
+[0-9]+                          { yylval.int_val = atoi(yytext); return NUMBER; }
+'((\\[aefnrtv])|[\x00-\x7F])'   { yylval.char_val = yytext[0]; return CHARCONST; }
 
 .                               { return OTHER; }
 
