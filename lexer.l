@@ -52,7 +52,7 @@ int line_count = 1;
 
 [A-Za-z][A-Za-z0-9]*            { yylval.name = strdup(yytext); return NAME; }
 [0-9]+                          { yylval.number = atoi(yytext); return NUMBER; }
-'((\\[aefnrtv])|[\x00-\x7F])'   { yylval.charconst = strdup(yytext)[0]; return CHARCONST; }
+'((\\[aefnrtv])|[\x00-\x7F])'   { yylval.charconst = yytext[0]; return CHARCONST; }
 
 .                               { return OTHER; }
 
