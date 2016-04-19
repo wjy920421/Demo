@@ -1,6 +1,9 @@
 %{
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
+
+using namespace std;
 
 extern int yylex();
 extern int yyparse();
@@ -20,7 +23,9 @@ int error_count = 0;
 {
     char * name;
     int number;
-    char * charconst;
+    char charconst;
+
+    char * type;
 }
 
 %token <name> NAME "name"
@@ -30,11 +35,11 @@ int error_count = 0;
 /* Reserved words */
 %token AND "and(keyword)"
 %token BY "by(keyword)"
-%token CHAR "char(keyword)"
+%token <type> CHAR "char(keyword)"
 %token ELSE "else(keyword)"
 %token FOR "for(keyword)"
 %token IF "if(keyword)"
-%token INT "int(keyword)"
+%token <type> INT "int(keyword)"
 %token NOT "not(keyword)"
 %token OR "or(keyword)"
 %token PROCEDURE "procedure(keyword)"
@@ -75,7 +80,7 @@ int error_count = 0;
 %nonassoc IFX
 %nonassoc ELSE
 
-
+%type <type> Type
 
 %%
 
@@ -94,13 +99,18 @@ Decls:
 
 Decl:
     Type SpecList SEMICOLON
+    {
+        cout << "Type: " << $1 << endl; 
+        //cout << "SpecList: " << $2 << endl;
+        //cout << "SEMICOLON: " << $3 << endl << endl;
+    }
     | Type error SEMICOLON
     | NAME error SEMICOLON
     ;
 
 Type:
-    INT
-    | CHAR
+    INT { $$ = $1; }
+    | CHAR { $$ = $1; }
     ;
 
 SpecList:

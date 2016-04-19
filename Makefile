@@ -1,3 +1,4 @@
+CC = g++
 LEX = flex
 YACC = bison -d -v
 
@@ -8,7 +9,7 @@ else
 LDFLAGS = -lfl
 endif
 
-demo: demo.c parser.tab.c lexer.c
+demo: demo.cc parser.tab.c lexer.c
 	$(CC) $^ -o $@  $(LDFLAGS)
 
 parser.tab.c parser.tab.h: parser.y

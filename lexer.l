@@ -14,11 +14,11 @@ int line_count = 1;
 
 "and"           { return AND; }
 "by"            { return BY; }
-"char"          { return CHAR; }
+"char"          { yylval.name = strdup(yytext); return CHAR; }
 "else"          { return ELSE; }
 "for"           { return FOR; }
 "if"            { return IF; }
-"int"           { return INT; }
+"int"           { yylval.name = strdup(yytext); return INT; }
 "not"           { return NOT; }
 "or"            { return OR; }
 "procedure"     { return PROCEDURE; }
@@ -52,7 +52,7 @@ int line_count = 1;
 
 [A-Za-z][A-Za-z0-9]*            { yylval.name = strdup(yytext); return NAME; }
 [0-9]+                          { yylval.number = atoi(yytext); return NUMBER; }
-'((\\[aefnrtv])|[\x00-\x7F])'   { yylval.charconst = strdup(yytext); return CHARCONST; }
+'((\\[aefnrtv])|[\x00-\x7F])'   { yylval.charconst = strdup(yytext)[0]; return CHARCONST; }
 
 .                               { return OTHER; }
 
