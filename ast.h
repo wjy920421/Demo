@@ -1,4 +1,13 @@
-typedef enum { NodeTypeConstant, NodeTypeVar, NodeTypeOp } NodeType;
+#ifndef AST_H
+#define AST_H
+
+#include <iostream>
+#include <unordered_map>
+#include <string>
+
+using namespace std;
+
+typedef enum { NodeTypeConstant, NodeTypeVar, NodeTypeOp, NodeTypeRef } NodeType;
 
 enum VarTypeEnum { VarTypeInt, VarTypeChar };
 typedef VarTypeEnum VarType;
@@ -12,17 +21,22 @@ typedef struct
 typedef struct
 {
     char * name;
-    char * reg;
     char * type;
+    int dimensions;
+    union
+    {
+        char * reg;
+        char * addr;
+        int d[10][2];
+    };
 } VarNode;
 
 typedef struct
 {
-    char * name;
-    int offset;
+    VarNode var;
     int dimensions;
-    int d[10][2];
-} DataNode;
+    int d[10];
+} RefNode;
 
 typedef struct
 {
@@ -38,9 +52,21 @@ struct NodeStruct
     {
         ConstantNode constant;
         VarNode var;
+        RefNode ref;
         OpNode op;
     };
 };
 typedef NodeStruct Node;
 
-extern int sym[26];
+
+Node * create_constant(int value, bool charconst);
+Node * create_var(const char * name, const char * type, int dimensions, int d[10][2]);
+Node * create_op(int op_type, int num_ops, ...);
+Node * get_var(const char * name, int dimensions, int d[]);
+void print_env();
+Node * execute(Node *p);
+
+#endif
+
+
+

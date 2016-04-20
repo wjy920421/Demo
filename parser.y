@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <unordered_map>
 #include <vector>
-#include <tuple>
 #include <string>
 #include "ast.h"
 
@@ -20,44 +19,17 @@ extern int line_count;
 
 
 
-Node * create_constant(int value, bool charconst);
-Node * create_var(char * name, char * type);
-Node * create_op(int op_type, int num_ops, ...);
-Node * get_var(char * name, int dimensions, int d[]);
-int execute(Node *p);
-int sym[26];
-static int reg_id = 0;
+int reg_id = 0;
 unordered_map<string, Node *> env;
 
-void print_storage();
 int parser(char * filename);
 void yyerror(const char *s);
 int error_count = 0;
 
-class Var
-{
-public:
-    Var(string n, string a, string t, vector<pair<int, int>> d)
-    { name = n; addr = a; type = t; dimensions = d; }
-    string name;
-    string addr;
-    string type;
-    vector<pair<int, int>> dimensions;
-};
-
-struct reference_struct
-{
-    char * name;
-    int dimmensions;
-    int d[20];
-};
-
 // Memory
 int offset = 0;
 
-vector<Var> storage;
-unordered_map<string, int> vars;
-vector<string> current_type_vars;
+vector<Node *> current_type_vars;
 vector<pair<int, int>> current_dimensions;
 %}
 
@@ -138,10 +110,6 @@ vector<pair<int, int>> current_dimensions;
 Procedure:
     PROCEDURE NAME LEFTBRACE Decls Stmts RIGHTBRACE
     {
-        storage.push_back(Var($2, to_string(offset), $1, vector<pair<int, int>>()));
-        vars[$2] = storage.size() - 1;
-        offset += sizeof($2);
-
         execute($5);
     }
     ;
@@ -155,10 +123,8 @@ Decl:
     Type SpecList SEMICOLON
     {
         for (auto it = current_type_vars.begin(); it != current_type_vars.end(); ++it)
-        {
-            storage[vars[*it]].type = $1;
-        }
-        current_type_vars = vector<string>();
+            (*it)->var.type = strdup($1);
+        current_type_vars = vector<Node *>();
     }
     | Type error SEMICOLON
     | NAME error SEMICOLON
@@ -177,32 +143,27 @@ SpecList:
 Spec:
     NAME LEFTBRACKET Bounds RIGHTBRACKET
     {
-        if (vars.count($1) > 0)
-        {
-            yyerror(("error: " + string($1) + " is declared more than once").c_str());
-        }
+        if (env.count($1) > 0) yyerror(("error: " + string($1) + " is declared more than once").c_str());
         else
         {
-            string reg = "r" + to_string(reg_id++);
-            storage.push_back(Var($1, reg, "type_name", current_dimensions));
-            vars[$1] = storage.size() - 1;
-            current_type_vars.push_back($1);
+            int d[10][2];
+            Node * p = create_var($1, "type_name", 0, d);
+            current_type_vars.push_back(p);
+            env[string($1)] = p;
         }
         current_dimensions = vector<pair<int, int>>();
     }
     | NAME
     {
-        if (vars.count($1) > 0)
-        {
-            yyerror(("error: " + string($1) + " is declared more than once").c_str());
-        }
+        if (env.count($1) > 0) yyerror(("error: " + string($1) + " is declared more than once").c_str());
         else
         {
-            string reg = "r" + to_string(reg_id++);
-            storage.push_back(Var($1, reg, "type_name", vector<pair<int, int>>()));
-            vars[$1] = storage.size() - 1;
-            current_type_vars.push_back($1);
+            int d[10][2];
+            Node * p = create_var($1, "type_name", 0, d);
+            current_type_vars.push_back(p);
+            env[string($1)] = p;
         }
+        current_dimensions = vector<pair<int, int>>();
     }
     ;
 
@@ -216,8 +177,8 @@ Bound:
     ;
 
 Stmts:
-    Stmts Stmt
-    | Stmt
+    Stmts Stmt { $$ = create_op(SEMICOLON, 2, $1, $2); }
+    | Stmt { $$ = $1; }
     ;
 
 Stmt:
@@ -324,7 +285,7 @@ int parser(char * filename)
     else
         printf("\n%d error%s generated\n\n", error_count, (error_count==1)? "": "s");
 
-    print_storage();
+    print_env();
 
     return 0;
 }
@@ -336,15 +297,15 @@ void yyerror(const char * s)
     error_count++;
 }
 
-void print_storage()
+void print_env()
 {
     cout << "Storage Layout" << endl;
     cout << "Name      Addr      Type      Dimensions" << endl;
-    for (auto it = storage.begin(); it != storage.end(); ++it)
+    for (auto it = env.begin(); it != env.end(); ++it)
     {
-        printf("%-10s%-10s%-10s", it->name.c_str(), it->addr.c_str(), it->type.c_str());
-        for (auto it2 = it->dimensions.begin(); it2 != it->dimensions.end(); ++it2)
-            printf("%d:%d ", it2->first, it2->second);
+        printf("%-10s%-10s%-10s", it->second->var.name, it->second->var.reg, it->second->var.type);
+        //for (auto it2 = it->dimensions.begin(); it2 != it->dimensions.end(); ++it2)
+        //    printf("%d:%d ", it2->first, it2->second);
         printf("\n");
     }
 }
@@ -361,14 +322,22 @@ Node * create_constant(int value, bool charconst)
     return p;
 }
 
-Node * create_var(char * name, char * type)
+Node * create_var(const char * name, const char * type, int dimensions, int d[10][2])
 {
     Node * p;
     p = (Node *)malloc(sizeof(Node));
     p->type = NodeTypeVar;
     p->var.name = strdup(name);
     p->var.type = strdup(type);
-    sprintf(p->var.reg, "r%d", reg_id++);
+    char reg[10];
+    sprintf(reg, "r%d", reg_id++);
+    p->var.reg = strdup(reg);
+    p->var.dimensions = dimensions;
+    for (int i = 0; i < dimensions; i++)
+    {
+        p->var.d[i][0] = d[i][0];
+        p->var.d[i][1] = d[i][1];
+    }
     return p;
 }
 
@@ -388,7 +357,22 @@ Node * create_op(int op_type, int num_ops, ...)
     return p;
 }
 
-Node * get_var(char * name, int dimensions, int d[])
+Node * get_var(const char * name, int dimensions, int d[])
 {
-    return nullptr;
+    if (env.count(string(name)) == 0)
+        yyerror(("error: variable '" + string(name) + "' is not declared").c_str());
+    Node * p = env[string(name)];
+    if (p->var.dimensions != dimensions)
+        yyerror(("error: variable '" + string(name) + "' has " + to_string(p->var.dimensions) + " dimension(s)").c_str());
+    Node * ref = (Node *)malloc(sizeof(Node));
+    ref->type = NodeTypeRef;
+    ref->ref.var = p->var;
+    ref->ref.dimensions = dimensions;
+    for (int i = 0; i < dimensions; i++)
+    {
+        ref->ref.d[i] = d[i];
+    }
+    return ref;
 }
+
+
