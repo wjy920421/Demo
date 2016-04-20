@@ -15,11 +15,11 @@ int line_count = 1;
 
 "and"           { return AND; }
 "by"            { return BY; }
-"char"          { yylval.str_val = strdup(yytext); return CHAR; }
+"char"          { return CHAR; }
 "else"          { return ELSE; }
 "for"           { return FOR; }
 "if"            { return IF; }
-"int"           { yylval.str_val = strdup(yytext); return INT; }
+"int"           { return INT; }
 "not"           { return NOT; }
 "or"            { return OR; }
 "procedure"     { yylval.str_val = strdup(yytext); return PROCEDURE; }

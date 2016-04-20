@@ -20,12 +20,14 @@ extern int line_count;
 
 
 
-nodeType *opr(int oper, int nops, ...);
-nodeType *id(char * i);
-nodeType *con(int value);
-void freeNode(nodeType *p);
-int ex(nodeType *p);
+Node * create_constant(int value, bool charconst);
+Node * create_var(char * name, char * type);
+Node * create_op(int op_type, int num_ops, ...);
+Node * get_var(char * name, int dimensions, int d[]);
+int execute(Node *p);
 int sym[26];
+static int reg_id = 0;
+unordered_map<string, Node *> env;
 
 void print_storage();
 int parser(char * filename);
@@ -53,8 +55,6 @@ struct reference_struct
 // Memory
 int offset = 0;
 
-// Variables
-int reg_id = 1;
 vector<Var> storage;
 unordered_map<string, int> vars;
 vector<string> current_type_vars;
@@ -71,7 +71,7 @@ vector<pair<int, int>> current_dimensions;
     char char_val;
     int int_val;
 
-    struct nodeTypeTag *nPtr;
+    struct NodeStruct *node;
 }
 
 %token <str_val> NAME "name"
@@ -81,11 +81,11 @@ vector<pair<int, int>> current_dimensions;
 /* Reserved words */
 %token AND "and(keyword)"
 %token BY "by(keyword)"
-%token <str_val> CHAR "char(keyword)"
+%token CHAR "char(keyword)"
 %token ELSE "else(keyword)"
 %token FOR "for(keyword)"
 %token IF "if(keyword)"
-%token <str_val> INT "int(keyword)"
+%token INT "int(keyword)"
 %token NOT "not(keyword)"
 %token OR "or(keyword)"
 %token <str_val> PROCEDURE "procedure(keyword)"
@@ -127,7 +127,7 @@ vector<pair<int, int>> current_dimensions;
 %nonassoc ELSE
 
 %type <str_val> Type
-%type <nPtr> Stmt Stmts Expr Bool OrTerm AndTerm RelExpr Term Factor Reference
+%type <node> Stmt Stmts Expr Bool OrTerm AndTerm RelExpr Term Factor Reference
 
 %%
 
@@ -142,8 +142,7 @@ Procedure:
         vars[$2] = storage.size() - 1;
         offset += sizeof($2);
 
-        ex($5);
-        freeNode($5);
+        execute($5);
     }
     ;
 
@@ -166,8 +165,8 @@ Decl:
     ;
 
 Type:
-    INT { $$ = $1; }
-    | CHAR { $$ = $1; }
+    INT { $$ = strdup("int"); }
+    | CHAR { $$ = strdup("char"); }
     ;
 
 SpecList:
@@ -222,14 +221,14 @@ Stmts:
     ;
 
 Stmt:
-    Reference BIND Expr SEMICOLON { $$ = opr(BIND, 2, $1, $3); }
+    Reference BIND Expr SEMICOLON { $$ = create_op(BIND, 2, $1, $3); }
     | LEFTBRACE Stmts RIGHTBRACE { $$= $2; }
-    | WHILE LEFTPARENTHESIS Bool RIGHTPARENTHESIS LEFTBRACE Stmts RIGHTBRACE { $$ = opr(WHILE, 2, $3, $6); }
-    | FOR NAME BIND Expr TO Expr BY Expr LEFTBRACE Stmts RIGHTBRACE { $$ = opr(FOR, 5, $2, $4, $6, $8, $10); }
-    | IF LEFTPARENTHESIS Bool RIGHTPARENTHESIS THEN Stmt %prec IFX { $$ = opr(IF, 2, $3, $6); }
-    | IF LEFTPARENTHESIS Bool RIGHTPARENTHESIS THEN Stmt ELSE Stmt { $$ = opr(IF, 3, $3, $6, $8); }
-    | READ Reference SEMICOLON { $$ = opr(READ, 1, $2); }
-    | WRITE Expr SEMICOLON { $$ = opr(WRITE, 1, $2); }
+    | WHILE LEFTPARENTHESIS Bool RIGHTPARENTHESIS LEFTBRACE Stmts RIGHTBRACE { $$ = create_op(WHILE, 2, $3, $6); }
+    | FOR NAME BIND Expr TO Expr BY Expr LEFTBRACE Stmts RIGHTBRACE { $$ = create_op(FOR, 5, $2, $4, $6, $8, $10); }
+    | IF LEFTPARENTHESIS Bool RIGHTPARENTHESIS THEN Stmt %prec IFX { $$ = create_op(IF, 2, $3, $6); }
+    | IF LEFTPARENTHESIS Bool RIGHTPARENTHESIS THEN Stmt ELSE Stmt { $$ = create_op(IF, 3, $3, $6, $8); }
+    | READ Reference SEMICOLON { $$ = create_op(READ, 1, $2); }
+    | WRITE Expr SEMICOLON { $$ = create_op(WRITE, 1, $2); }
     | SEMICOLON { yyerror("syntax error, unexpected ;, empty statement"); }
     | LEFTBRACE RIGHTBRACE { yyerror("syntax error, unexpected ;, empty statement list"); }
     | error SEMICOLON { $$ = nullptr; }
@@ -237,52 +236,52 @@ Stmt:
     ;
 
 Bool:
-    NOT OrTerm { $$ = opr(NOT, 1, $2); }
+    NOT OrTerm { $$ = create_op(NOT, 1, $2); }
     | OrTerm { $$ = $1; }
     ;
 
 OrTerm:
-    OrTerm OR AndTerm { $$ = opr(OR, 2, $1, $3); }
+    OrTerm OR AndTerm { $$ = create_op(OR, 2, $1, $3); }
     | AndTerm  { $$ = $1; }
     ;
 
 AndTerm:
-    AndTerm AND RelExpr { $$ = opr(AND, 2, $1, $3); }
+    AndTerm AND RelExpr { $$ = create_op(AND, 2, $1, $3); }
     | RelExpr  { $$ = $1; }
     ;
 
 RelExpr:
-    RelExpr OP_LESSTHAN Expr { $$ = opr(OP_LESSTHAN, 2, $1, $3); }
-    | RelExpr OP_LESSTHANEQUALS Expr { $$ = opr(OP_LESSTHANEQUALS, 2, $1, $3); }
-    | RelExpr OP_EQUALS Expr { $$ = opr(OP_EQUALS, 2, $1, $3); }
-    | RelExpr OP_NOTEQUALS Expr { $$ = opr(OP_NOTEQUALS, 2, $1, $3); }
-    | RelExpr OP_GREATERTHAN Expr { $$ = opr(OP_GREATERTHAN, 2, $1, $3); }
-    | RelExpr OP_GREATERTHANEQUALS Expr { $$ = opr(OP_GREATERTHANEQUALS, 2, $1, $3); }
+    RelExpr OP_LESSTHAN Expr { $$ = create_op(OP_LESSTHAN, 2, $1, $3); }
+    | RelExpr OP_LESSTHANEQUALS Expr { $$ = create_op(OP_LESSTHANEQUALS, 2, $1, $3); }
+    | RelExpr OP_EQUALS Expr { $$ = create_op(OP_EQUALS, 2, $1, $3); }
+    | RelExpr OP_NOTEQUALS Expr { $$ = create_op(OP_NOTEQUALS, 2, $1, $3); }
+    | RelExpr OP_GREATERTHAN Expr { $$ = create_op(OP_GREATERTHAN, 2, $1, $3); }
+    | RelExpr OP_GREATERTHANEQUALS Expr { $$ = create_op(OP_GREATERTHANEQUALS, 2, $1, $3); }
     | Expr { $$ = $1; }
     ;
 
 Expr:
-    Expr OP_PLUS Term { $$ = opr(OP_PLUS, 2, $1, $3); }
-    | Expr OP_MINUS Term { $$ = opr(OP_MINUS, 2, $1, $3); }
+    Expr OP_PLUS Term { $$ = create_op(OP_PLUS, 2, $1, $3); }
+    | Expr OP_MINUS Term { $$ = create_op(OP_MINUS, 2, $1, $3); }
     | Term { $$ = $1; }
     ;
 
 Term:
-    Term OP_TIMES Factor { $$ = opr(OP_TIMES, 2, $1, $3); }
-    | Term OP_DIVIDE Factor { $$ = opr(OP_DIVIDE, 2, $1, $3); }
+    Term OP_TIMES Factor { $$ = create_op(OP_TIMES, 2, $1, $3); }
+    | Term OP_DIVIDE Factor { $$ = create_op(OP_DIVIDE, 2, $1, $3); }
     | Factor { $$ = $1; }
     ;
 
 Factor:
     LEFTPARENTHESIS Expr RIGHTPARENTHESIS { $$ = $2; }
     | Reference { $$ = $1; }
-    | NUMBER  { $$ = con($1); }
-    | CHARCONST { $$ = con(123); }
+    | NUMBER  { $$ = create_constant($1, false); }
+    | CHARCONST { $$ = create_constant($1, true); }
     ;
 
 Reference:
-    NAME LEFTBRACKET Exprs RIGHTBRACKET { $$ = id($1); }
-    | NAME { $$ = id($1); }
+    NAME LEFTBRACKET Exprs RIGHTBRACKET { int d[10]; $$ = get_var($1, 0, d); }
+    | NAME { int d[10]; $$ = get_var($1, 0, d); }
     ;
 
 Exprs:
@@ -352,50 +351,44 @@ void print_storage()
 
 #define SIZEOF_NODETYPE ((char *)&p->con - (char *)p)
 
-nodeType *con(int value)
+Node * create_constant(int value, bool charconst)
 {
-    nodeType *p;
-    if ((p = (nodeType *)malloc(sizeof(nodeType))) == NULL)
-    yyerror("out of memory");
-    /* copy information */
-    p->type = typeCon;
-        p->con.value = value;
+    Node *p;
+    p = (Node *)malloc(sizeof(Node));
+    p->type = NodeTypeConstant;
+    p->constant.value = value;
+    p->constant.charconst = charconst;
     return p;
 }
 
-nodeType *id(char * i)
+Node * create_var(char * name, char * type)
 {
-    nodeType *p;
-    /* allocate node */
-    if ((p = (nodeType *)malloc(sizeof(nodeType))) == NULL)
-    /* copy information */
-    p->type = typeId;
-    p->id.i = strdup(i);
+    Node * p;
+    p = (Node *)malloc(sizeof(Node));
+    p->type = NodeTypeVar;
+    p->var.name = strdup(name);
+    p->var.type = strdup(type);
+    sprintf(p->var.reg, "r%d", reg_id++);
     return p;
 }
 
-nodeType *opr(int oper, int nops, ...)
+Node * create_op(int op_type, int num_ops, ...)
 {
     va_list ap;
-    nodeType *p;
-    int i;
-    /* allocate node */
-    if ((p = (nodeType *)malloc(sizeof(nodeType))) == NULL)
-        yyerror("out of memory");
-    if ((p->opr.op = (nodeType **)malloc(nops * sizeof(nodeType *))) == NULL)
-        yyerror("out of memory");
-    /* copy information */
-    p->type = typeOpr;
-    p->opr.oper = oper;
-    p->opr.nops = nops;
-    va_start(ap, nops);
-    for (i = 0; i < nops; i++)
-        p->opr.op[i] = va_arg(ap, nodeType*);
+    Node *p;
+    p = (Node *)malloc(sizeof(Node));
+    p->op.ops = (Node **)malloc(num_ops * sizeof(Node *));
+    p->type = NodeTypeOp;
+    p->op.op_type = op_type;
+    p->op.num_ops = num_ops;
+    va_start(ap, num_ops);
+    for (int i = 0; i < num_ops; i++)
+        p->op.ops[i] = va_arg(ap, Node *);
     va_end(ap);
     return p;
 }
 
-void freeNode(nodeType *p)
+Node * get_var(char * name, int dimensions, int d[])
 {
+    return nullptr;
 }
-

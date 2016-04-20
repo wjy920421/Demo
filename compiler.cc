@@ -3,73 +3,98 @@
 #include "ast.h"
 
 
-static int lbl;
+static int label_id;
 
-int ex(nodeType *p) {
-    int lbl1, lbl2;
+int execute(Node *p)
+{
 
     if (!p) return 0;
 
-    switch(p->type) {
-    case typeCon:
-        printf("\tpush\t%d\n", p->con.value);
-        break;
-    case typeId:
-        printf("\tpush\t%s\n", p->id.i);
-        break;
-    case typeOpr:
-        switch(p->opr.oper) {
-        case WHILE:
-            printf("L%03d:\n", lbl1 = lbl++);
-            ex(p->opr.op[0]);
-            printf("\tjz\tL%03d\n", lbl2 = lbl++);
-            ex(p->opr.op[1]);
-            printf("\tjmp\tL%03d\n", lbl1);
-            printf("L%03d:\n", lbl2);
+    switch(p->type)
+    {
+        case NodeTypeConstant:
+        {
+            printf("\tpush\t%d\n", p->constant.value);
             break;
-        case IF:
-            ex(p->opr.op[0]);
-            if (p->opr.nops > 2) {
-                /* if else */
-                printf("\tjz\tL%03d\n", lbl1 = lbl++);
-                ex(p->opr.op[1]);
-                printf("\tjmp\tL%03d\n", lbl2 = lbl++);
-                printf("L%03d:\n", lbl1);
-                ex(p->opr.op[2]);
-                printf("L%03d:\n", lbl2);
-            }
-            else {
-                /* if */
-                printf("\tjz\tL%03d\n", lbl1 = lbl++);
-                ex(p->opr.op[1]);
-                printf("L%03d:\n", lbl1);
-            }
+        }
+        case NodeTypeVar:
+        {
+            printf("\tpush\t%s\n", p->var.name);
             break;
-        case WRITE:
-            ex(p->opr.op[0]);
-            printf("\tprint\n");
-            break;
-        case '=':
-            ex(p->opr.op[1]);
-            printf("\tpop\t%s\n", p->opr.op[0]->id.i); break;
-        // case UMINUS:
-        //     ex(p->opr.op[0]);
-        //     printf("\tneg\n");
-        //     break;
-        default:
-            ex(p->opr.op[0]);
-            ex(p->opr.op[1]);
-            switch(p->opr.oper) {
-                case OP_PLUS: printf("\tadd\n"); break;
-                case OP_MINUS: printf("\tsub\n"); break;
-                case OP_TIMES: printf("\tmul\n"); break;
-                case OP_DIVIDE: printf("\tdiv\n"); break;
-                case OP_LESSTHAN: printf("\tcompLT\n"); break;
-                case OP_LESSTHANEQUALS: printf("\tcompLE\n"); break;
-                case OP_EQUALS: printf("\tcompEQ\n"); break;
-                case OP_NOTEQUALS: printf("\tcompNE\n"); break;
-                case OP_GREATERTHAN: printf("\tcompGT\n"); break;
-                case OP_GREATERTHANEQUALS: printf("\tcompGE\n"); break;
+        }
+        case NodeTypeOp:
+        {
+            switch(p->op.op_type)
+            {
+                case WHILE:
+                {
+                    int label_1 = label_id++;
+                    int label_2 = label_id++;
+                    printf("L%03d:\n", label_1);
+                    execute(p->op.ops[0]);
+                    printf("\tjz\tL%03d\n", label_2);
+                    execute(p->op.ops[1]);
+                    printf("\tjmp\tL%03d\n", label_1);
+                    printf("L%03d:\n", label_2);
+                    break;
+                }
+                case FOR:
+
+                case IF:
+                {
+                    execute(p->op.ops[0]);
+                    if (p->op.num_ops > 2) {
+                        /* if else */
+                        int label_1 = label_id++;
+                        int label_2 = label_id++;
+                        printf("\tjz\tL%03d\n", label_1);
+                        execute(p->op.ops[1]);
+                        printf("\tjmp\tL%03d\n", label_2);
+                        printf("L%03d:\n", label_1);
+                        execute(p->op.ops[2]);
+                        printf("L%03d:\n", label_2);
+                    }
+                    else {
+                        /* if */
+                        int label = label_id++;
+                        printf("\tjz\tL%03d\n", label);
+                        execute(p->op.ops[1]);
+                        printf("L%03d:\n", label);
+                    }
+                    break;
+                }
+                case WRITE:
+                {
+                    execute(p->op.ops[0]);
+                    printf("\tprint\n");
+                    break;
+                }
+                case '=':
+                {
+                    execute(p->op.ops[1]);
+                    printf("\tpop\t%s\n", p->op.ops[0]->var.name); break;
+                }
+                // case UMINUS:
+                //     execute(p->opr.op[0]);
+                //     printf("\tneg\n");
+                //     break;
+                default:
+                {
+                    execute(p->op.ops[0]);
+                    execute(p->op.ops[1]);
+                    switch(p->op.op_type) {
+                        case OP_PLUS: printf("\tadd\n"); break;
+                        case OP_MINUS: printf("\tsub\n"); break;
+                        case OP_TIMES: printf("\tmul\n"); break;
+                        case OP_DIVIDE: printf("\tdiv\n"); break;
+                        case OP_LESSTHAN: printf("\tcompLT\n"); break;
+                        case OP_LESSTHANEQUALS: printf("\tcompLE\n"); break;
+                        case OP_EQUALS: printf("\tcompEQ\n"); break;
+                        case OP_NOTEQUALS: printf("\tcompNE\n"); break;
+                        case OP_GREATERTHAN: printf("\tcompGT\n"); break;
+                        case OP_GREATERTHANEQUALS: printf("\tcompGE\n"); break;
+                    }
+                }
             }
         }
     }

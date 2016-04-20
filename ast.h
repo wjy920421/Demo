@@ -1,27 +1,46 @@
-typedef enum { typeCon, typeId, typeOpr } nodeEnum;
+typedef enum { NodeTypeConstant, NodeTypeVar, NodeTypeOp } NodeType;
 
-typedef struct {
+enum VarTypeEnum { VarTypeInt, VarTypeChar };
+typedef VarTypeEnum VarType;
+
+typedef struct
+{
     int value;
-} conNodeType;
+    bool charconst;
+} ConstantNode;
 
-typedef struct {
-    char * i;
-} idNodeType;
+typedef struct
+{
+    char * name;
+    char * reg;
+    char * type;
+} VarNode;
 
-typedef struct {
-    int oper;
-    int nops;
-    struct nodeTypeTag **op;
-} oprNodeType;
+typedef struct
+{
+    char * name;
+    int offset;
+    int dimensions;
+    int d[10][2];
+} DataNode;
 
-struct nodeTypeTag {
-    nodeEnum type;
-    union {
-        conNodeType con;
-        idNodeType id;
-        oprNodeType opr;
+typedef struct
+{
+    int op_type;
+    int num_ops;
+    struct NodeStruct **ops;
+} OpNode;
+
+struct NodeStruct
+{
+    NodeType type;
+    union
+    {
+        ConstantNode constant;
+        VarNode var;
+        OpNode op;
     };
 };
-typedef nodeTypeTag nodeType;
+typedef NodeStruct Node;
 
 extern int sym[26];
