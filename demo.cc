@@ -2,7 +2,7 @@
 #include <string.h>
 #include "parser.tab.h"
 
-extern int parser(char * filename);
+extern int parser(const char * filename);
 
 int main(int argc, char ** argv)
 {

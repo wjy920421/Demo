@@ -18,4 +18,4 @@ parser.tab.c parser.tab.h: parser.y
 lexer.c: lexer.l
 
 clean:
-	$(RM) *.o lexer.c parser.tab.c parser.tab.h parser.output demo
+	$(RM) -r *.o lexer.c parser.tab.c parser.tab.h parser.output demo *.dSYM

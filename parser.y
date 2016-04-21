@@ -12,7 +12,7 @@ using namespace std;
 extern int yylex();
 extern int yyparse();
 extern FILE * yyin;
-extern int line_count;
+extern char asm_code[500000];
 
 
 
@@ -22,8 +22,12 @@ extern int line_count;
 int reg_id = 0;
 unordered_map<string, Node *> env;
 
-int parser(char * filename);
+char * output_filename;
+
+void save();
+int parser(const char * filename);
 void yyerror(const char *s);
+int line_count = 1;
 int error_count = 0;
 
 // Memory
@@ -111,6 +115,13 @@ Procedure:
     PROCEDURE NAME LEFTBRACE Decls Stmts RIGHTBRACE
     {
         execute($5);
+
+        save();
+
+        if (error_count == 0)
+            printf("\nProgram compiled: \n\n");
+        else
+            printf("\n%d error%s generated\n\n", error_count, (error_count==1)? "": "s");
     }
     ;
 
@@ -185,7 +196,7 @@ Stmt:
     Reference BIND Expr SEMICOLON { $$ = create_op(BIND, 2, $1, $3); }
     | LEFTBRACE Stmts RIGHTBRACE { $$= $2; }
     | WHILE LEFTPARENTHESIS Bool RIGHTPARENTHESIS LEFTBRACE Stmts RIGHTBRACE { $$ = create_op(WHILE, 2, $3, $6); }
-    | FOR NAME BIND Expr TO Expr BY Expr LEFTBRACE Stmts RIGHTBRACE { $$ = create_op(FOR, 5, $2, $4, $6, $8, $10); }
+    | FOR NAME BIND Expr TO Expr BY Expr LEFTBRACE Stmts RIGHTBRACE { int d[10]; $$ = create_op(FOR, 5, get_var($2, 0, d), $4, $6, $8, $10); }
     | IF LEFTPARENTHESIS Bool RIGHTPARENTHESIS THEN Stmt %prec IFX { $$ = create_op(IF, 2, $3, $6); }
     | IF LEFTPARENTHESIS Bool RIGHTPARENTHESIS THEN Stmt ELSE Stmt { $$ = create_op(IF, 3, $3, $6, $8); }
     | READ Reference SEMICOLON { $$ = create_op(READ, 1, $2); }
@@ -254,7 +265,7 @@ Exprs:
 
 
 
-int parser(char * filename)
+int parser(const char * filename)
 {
     printf("\n");
 
@@ -268,11 +279,19 @@ int parser(char * filename)
         }
         yyin = file;
         printf("Loaded Demo program from: %s \n", filename);
+
+        output_filename = strdup((string(filename).substr(0, string(filename).find_last_of(".")) + ".i").c_str()); 
     }
     else
     {
         printf("No file is specified. The program will read from stdin.\n");
+
+        output_filename = strdup("stdin.i");
     }
+
+    line_count = 1;
+    error_count = 0;
+    strcpy(asm_code, "");
 
     do
     {
@@ -280,16 +299,22 @@ int parser(char * filename)
     }
     while (!feof(yyin));
 
-    if (error_count == 0)
-        printf("\nSuccess\n\n");
-    else
-        printf("\n%d error%s generated\n\n", error_count, (error_count==1)? "": "s");
-
     print_env();
 
     return 0;
 }
 
+void save() 
+{
+    FILE * file = fopen(output_filename, "w+");
+    if (!file)
+    {
+        fprintf(stderr, "Failed to open %s\n", output_filename);;
+        return;
+    }
+    fputs(asm_code, file);
+    fclose(file);
+}
 
 void yyerror(const char * s) 
 {

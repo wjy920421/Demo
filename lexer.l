@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "parser.tab.h"
 
-int line_count = 1;
+extern int line_count;
 
 #define YY_DECL extern int yylex()
 %}

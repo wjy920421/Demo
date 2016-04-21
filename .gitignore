@@ -4,3 +4,4 @@ lexer.c
 demo
 *.o
 *.output
+*.dSYM
