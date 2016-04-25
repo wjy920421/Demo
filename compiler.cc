@@ -18,8 +18,8 @@ void gen_code(const char *format, ...)
     va_start (arg, format);
     vsprintf (str, format, arg);
     va_end (arg);
-    strcat(asm_code, "\n");
     strcat(asm_code, str);
+    strcat(asm_code, "\n");
 
     printf("%s\n", str);
 }
@@ -33,6 +33,7 @@ Node * create_temp_reg(const char * type)
     p->var.type = strdup(type);
     char reg[10];
     sprintf(reg, "r%d", reg_id++);
+    p->var.is_reg = true;
     p->var.reg = strdup(reg);
     p->var.dimensions = 0;
     return p;
@@ -80,6 +81,24 @@ Node * execute(Node * p)
     return execute(p, nullptr);
 }
 
+Node * get_addr(Node * p)
+{
+    Node * var = execute(p->op.ops[0]);
+    Node * index[10];
+    for (int i = 0; i < p->op.ops[1]->op.num_ops; i++)
+        index[i] = execute(p->op.ops[1]->op.ops[i]);
+    Node * accum = load_constant(create_constant(0, false));
+    for (int i = 0; i < p->op.ops[1]->op.num_ops; i++)
+    {
+        if (i > 0) accum = execute(create_op(OP_TIMES, 2, accum, create_constant(var->var.d[i][1] - var->var.d[i][0] + 1, false)), accum);
+        accum = execute(create_op(OP_PLUS, 2, accum, create_op(OP_MINUS, 2, index[i], create_constant(var->var.d[i][0], false))), accum);
+    }
+    if (strcmp(var->var.type, "char") != 0)
+        accum = execute(create_op(OP_TIMES, 2, accum, create_constant(4, false)), accum);
+    accum = execute(create_op(OP_PLUS, 2, accum, create_constant(var->var.addr, false)), accum);
+    return accum;
+}
+
 Node * execute(Node * p, Node * ret)
 {
     if (!p) return nullptr;
@@ -92,18 +111,6 @@ Node * execute(Node * p, Node * ret)
         }
         case NodeTypeVar:
         {
-            return p;
-        }
-        case NodeTypeRef:
-        {
-            if (p->ref.dimensions == 0)
-            {
-                //////////////////////////////////////////
-                Node * var = (Node *)malloc(sizeof(Node));
-                var->type = NodeTypeVar;
-                var->var = p->var;
-                return var;
-            }
             return p;
         }
         case NodeTypeOp:
@@ -127,14 +134,15 @@ Node * execute(Node * p, Node * ret)
                 {
                     int label_1 = label_id++;
                     int label_2 = label_id++;
-                    Node * iter = execute(create_op(BIND, 2, p->op.ops[0], p->op.ops[1]));
+                    Node * iter = p->op.ops[0];
+                    execute(create_op(BIND, 2, iter, p->op.ops[1]));
                     Node * ub = execute(p->op.ops[2]);
                     Node * test = execute(create_op(OP_LESSTHANEQUALS, 2, iter, ub));
                     Node * step = execute(p->op.ops[3]);
                     gen_code("        cbr %s -> L%03d, L%03d", test->var.reg, label_1, label_2);
                     gen_code("L%03d:   nop", label_1);
                     execute(p->op.ops[4]);
-                    iter = execute(create_op(BIND, 2, iter, create_op(OP_PLUS, 2, iter, step)));
+                    execute(create_op(OP_PLUS, 2, iter, step), iter);
                     test = execute(create_op(OP_LESSTHANEQUALS, 2, iter, ub));
                     gen_code("        cbr %s -> L%03d, L%03d", test->var.reg, label_1, label_2);
                     gen_code("L%03d:   nop", label_2);
@@ -184,35 +192,58 @@ Node * execute(Node * p, Node * ret)
                 }
                 case BIND:
                 {
-                    Node * ref = execute(p->op.ops[0]);
+                    Node * ref = p->op.ops[0];
                     Node * expr = execute(p->op.ops[1]);
-                    if (expr->type == NodeTypeConstant)
+
+                    if (ref->op.op_type == LEFTBRACKET)
                     {
-                        load_constant(ref, expr);
+                        Node * addr = get_addr(ref);
+                        if (expr->type == NodeTypeConstant) expr = load_constant(expr);
+                        if (strcmp(ref->op.ops[0]->var.type, "int") == 0)
+                        {
+                            gen_code("        store %s => %s", expr->var.reg, addr->var.reg);
+                        }
+                        else
+                        {
+                            gen_code("        cload %s => %s", expr->var.reg, addr->var.reg);
+                        }
                     }
                     else
                     {
-                        if (strcmp(expr->var.type, "int") == 0 && strcmp(ref->var.type, "int") == 0)
-                            gen_code("        i2i %s => %s", expr->var.reg, ref->var.reg);
-                        else if (strcmp(expr->var.type, "int") == 0 && strcmp(ref->var.type, "char") == 0)
-                            gen_code("        i2c %s => %s", expr->var.reg, ref->var.reg);
-                        else if (strcmp(expr->var.type, "char") == 0 && strcmp(ref->var.type, "char") == 0)
-                            gen_code("        c2c %s => %s", expr->var.reg, ref->var.reg);
-                        else if (strcmp(expr->var.type, "char") == 0 && strcmp(ref->var.type, "int") == 0)
-                            gen_code("        c2i %s => %s", expr->var.reg, ref->var.reg);
+                        if (expr->type == NodeTypeConstant)
+                        {
+                            load_constant(ref, expr);
+                        }
+                        else
+                        {
+                            copy_reg(ref, expr);
+                        }
                     }
                     return ref;
                 }
-                // case UMINUS:
-                //     execute(p->opr.op[0]);
-                //     printf("\tneg\n");
-                //     break;
+                case LEFTBRACKET:
+                {
+                    Node * var = p->op.ops[0];
+                    Node * addr = get_addr(p);
+                    Node * temp;
+                    if (strcmp(var->var.type, "int") == 0)
+                    {
+                        temp = create_temp_reg("int");
+                        gen_code("        load %s => %s", addr->var.reg, temp->var.reg);
+                    }
+                    else
+                    {
+                        temp = create_temp_reg("char");
+                        gen_code("        cload %s => %s", addr->var.reg, temp->var.reg);
+                    }
+                    return temp;
+                }
                 default:
                 {
                     Node * left = execute(p->op.ops[0]);
-                    Node * right = execute(p->op.ops[1]);
-                    if (! ret)
-                        ret = create_temp_reg("int");
+                    Node * right;
+                    if (p->op.num_ops == 2)
+                        right = execute(p->op.ops[1]);
 
                     switch(p->op.op_type)
                     {
@@ -224,14 +255,17 @@ Node * execute(Node * p, Node * ret)
                             }
                             else if (left->type != NodeTypeConstant && right->type == NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 gen_code("        addI %s, %d => %s",left->var.reg , right->constant.value, ret->var.reg);
                             }
                             else if (left->type == NodeTypeConstant && right->type != NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 gen_code("        addI %s, %d => %s",right->var.reg , left->constant.value, ret->var.reg);
                             }
                             else if (left->type != NodeTypeConstant && right->type != NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 gen_code("        add %s, %s => %s",left->var.reg , right->var.reg, ret->var.reg);
                             }
                             break;
@@ -244,15 +278,18 @@ Node * execute(Node * p, Node * ret)
                             }
                             else if (left->type != NodeTypeConstant && right->type == NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 gen_code("        subI %s, %d => %s",left->var.reg , right->constant.value, ret->var.reg);
                             }
                             else if (left->type == NodeTypeConstant && right->type != NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 Node * left_temp = load_constant(left);
                                 gen_code("        sub %s, %s => %s",left_temp->var.reg , right->var.reg, ret->var.reg);
                             }
                             else if (left->type != NodeTypeConstant && right->type != NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 gen_code("        sub %s, %s => %s",left->var.reg , right->var.reg, ret->var.reg);
                             }
                             break;
@@ -265,14 +302,17 @@ Node * execute(Node * p, Node * ret)
                             }
                             else if (left->type != NodeTypeConstant && right->type == NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 gen_code("        multI %s, %d => %s",left->var.reg , right->constant.value, ret->var.reg);
                             }
                             else if (left->type == NodeTypeConstant && right->type != NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 gen_code("        multI %s, %d => %s",right->var.reg , left->constant.value, ret->var.reg);
                             }
                             else if (left->type != NodeTypeConstant && right->type != NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 gen_code("        mult %s, %s => %s",left->var.reg , right->var.reg, ret->var.reg);
                             }
                             break;
@@ -285,59 +325,100 @@ Node * execute(Node * p, Node * ret)
                             }
                             else if (left->type != NodeTypeConstant && right->type == NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 gen_code("        divI %s, %d => %s",left->var.reg , right->constant.value, ret->var.reg);
                             }
                             else if (left->type == NodeTypeConstant && right->type != NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 Node * left_temp = load_constant(left);
                                 gen_code("        div %s, %s => %s",left_temp->var.reg , right->var.reg, ret->var.reg);
                             }
                             else if (left->type != NodeTypeConstant && right->type != NodeTypeConstant)
                             {
+                                if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
                                 gen_code("        div %s, %s => %s",left->var.reg , right->var.reg, ret->var.reg);
                             }
                             break;
                         }
                         case OP_LESSTHAN:
                         {
-                            Node * left_reg = (left->type == NodeTypeConstant)? load_constant(left): left;
-                            Node * right_reg = (right->type == NodeTypeConstant)? load_constant(right): right;
+                            if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
+                            Node * left_reg = left, * right_reg = right;
+                            if (left->type == NodeTypeConstant) left_reg = load_constant(left);
+                            if (right->type == NodeTypeConstant) right_reg = load_constant(right);
                             gen_code("        cmp_LT %s, %s => %s",left_reg->var.reg , right_reg->var.reg, ret->var.reg);
                             break;
                         }
                         case OP_LESSTHANEQUALS:
                         {
-                            Node * left_reg = (left->type == NodeTypeConstant)? load_constant(left): left;
-                            Node * right_reg = (right->type == NodeTypeConstant)? load_constant(right): right;
+                            if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
+                            Node * left_reg = left, * right_reg = right;
+                            if (left->type == NodeTypeConstant) left_reg = load_constant(left);
+                            if (right->type == NodeTypeConstant) right_reg = load_constant(right);
                             gen_code("        cmp_LE %s, %s => %s",left_reg->var.reg , right_reg->var.reg, ret->var.reg);
                             break;
                         }
                         case OP_EQUALS:
                         {
-                            Node * left_reg = (left->type == NodeTypeConstant)? load_constant(left): left;
-                            Node * right_reg = (right->type == NodeTypeConstant)? load_constant(right): right;
+                            if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
+                            Node * left_reg = left, * right_reg = right;
+                            if (left->type == NodeTypeConstant) left_reg = load_constant(left);
+                            if (right->type == NodeTypeConstant) right_reg = load_constant(right);
                             gen_code("        cmp_EQ %s, %s => %s",left_reg->var.reg , right_reg->var.reg, ret->var.reg);
                             break;
                         }
                         case OP_NOTEQUALS:
                         {
-                            Node * left_reg = (left->type == NodeTypeConstant)? load_constant(left): left;
-                            Node * right_reg = (right->type == NodeTypeConstant)? load_constant(right): right;
+                            if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
+                            Node * left_reg = left, * right_reg = right;
+                            if (left->type == NodeTypeConstant) left_reg = load_constant(left);
+                            if (right->type == NodeTypeConstant) right_reg = load_constant(right);
                             gen_code("        cmp_NE %s, %s => %s",left_reg->var.reg , right_reg->var.reg, ret->var.reg);
                             break;
                         }
                         case OP_GREATERTHAN:
                         {
-                            Node * left_reg = (left->type == NodeTypeConstant)? load_constant(left): left;
-                            Node * right_reg = (right->type == NodeTypeConstant)? load_constant(right): right;
+                            if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
+                            Node * left_reg = left, * right_reg = right;
+                            if (left->type == NodeTypeConstant) left_reg = load_constant(left);
+                            if (right->type == NodeTypeConstant) right_reg = load_constant(right);
                             gen_code("        cmp_GT %s, %s => %s",left_reg->var.reg , right_reg->var.reg, ret->var.reg);
                             break;
                         }
                         case OP_GREATERTHANEQUALS:
                         {
-                            Node * left_reg = (left->type == NodeTypeConstant)? load_constant(left): left;
-                            Node * right_reg = (right->type == NodeTypeConstant)? load_constant(right): right;
+                            if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
+                            Node * left_reg = left, * right_reg = right;
+                            if (left->type == NodeTypeConstant) left_reg = load_constant(left);
+                            if (right->type == NodeTypeConstant) right_reg = load_constant(right);
                             gen_code("        cmp_GE %s, %s => %s",left_reg->var.reg , right_reg->var.reg, ret->var.reg);
+                            break;
+                        }
+                        case AND:
+                        {
+                            if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
+                            Node * left_reg = left, * right_reg = right;
+                            if (left->type == NodeTypeConstant) left_reg = load_constant(left);
+                            if (right->type == NodeTypeConstant) right_reg = load_constant(right);
+                            gen_code("        and %s, %s => %s",left_reg->var.reg , right_reg->var.reg, ret->var.reg);
+                            break;
+                        }
+                        case OR:
+                        {
+                            if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
+                            Node * left_reg = left, * right_reg = right;
+                            if (left->type == NodeTypeConstant) left_reg = load_constant(left);
+                            if (right->type == NodeTypeConstant) right_reg = load_constant(right);
+                            gen_code("        or %s, %s => %s",left_reg->var.reg , right_reg->var.reg, ret->var.reg);
+                            break;
+                        }
+                        case NOT:
+                        {
+                            if ( (!ret) || ret->type == NodeTypeConstant) ret = create_temp_reg("int");
+                            Node * left_reg = left;
+                            if (left->type == NodeTypeConstant) left_reg = load_constant(left);
+                            gen_code("        not %s => %s",left_reg->var.reg , ret->var.reg);
                             break;
                         }
                         default: break;

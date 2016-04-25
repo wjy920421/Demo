@@ -32,9 +32,18 @@ int error_count = 0;
 
 // Memory
 int offset = 0;
+char * current_var_type;
 
-vector<Node *> current_type_vars;
-vector<pair<int, int>> current_dimensions;
+struct BoundStruct {
+    int dimensions;
+    int d[10][2];
+};
+
+struct PairStruct {
+    int first;
+    int second;
+};
+
 %}
 
 
@@ -47,7 +56,10 @@ vector<pair<int, int>> current_dimensions;
     char char_val;
     int int_val;
 
-    struct NodeStruct *node;
+    struct NodeStruct * node;
+
+    struct BoundStruct * bounds;
+    struct PairStruct * bound;
 }
 
 %token <str_val> NAME "name"
@@ -103,7 +115,9 @@ vector<pair<int, int>> current_dimensions;
 %nonassoc ELSE
 
 %type <str_val> Type
-%type <node> Stmt Stmts Expr Bool OrTerm AndTerm RelExpr Term Factor Reference
+%type <node> Procedure Stmt Stmts Expr Exprs Bool OrTerm AndTerm RelExpr Term Factor Reference
+%type <bounds> Bounds
+%type <bound> Bound
 
 %%
 
@@ -112,9 +126,14 @@ vector<pair<int, int>> current_dimensions;
 //     | Procedure
 
 Procedure:
-    PROCEDURE NAME LEFTBRACE Decls Stmts RIGHTBRACE
+    PROCEDURE NAME
     {
-        execute($5);
+        int d[10][2];
+        create_var($2, "procedure", false, 0, d);
+    }
+    LEFTBRACE Decls Stmts RIGHTBRACE
+    {
+        execute($6);
 
         save();
 
@@ -131,12 +150,7 @@ Decls:
     ;
 
 Decl:
-    Type SpecList SEMICOLON
-    {
-        for (auto it = current_type_vars.begin(); it != current_type_vars.end(); ++it)
-            (*it)->var.type = strdup($1);
-        current_type_vars = vector<Node *>();
-    }
+    Type { current_var_type = $1; } SpecList SEMICOLON
     | Type error SEMICOLON
     | NAME error SEMICOLON
     ;
@@ -157,12 +171,9 @@ Spec:
         if (env.count($1) > 0) yyerror(("error: " + string($1) + " is declared more than once").c_str());
         else
         {
-            int d[10][2];
-            Node * p = create_var($1, "type_name", 0, d);
-            current_type_vars.push_back(p);
-            env[string($1)] = p;
+            Node * p = create_var($1, current_var_type, false, $3->dimensions, $3->d);
+            free($3);
         }
-        current_dimensions = vector<pair<int, int>>();
     }
     | NAME
     {
@@ -170,21 +181,38 @@ Spec:
         else
         {
             int d[10][2];
-            Node * p = create_var($1, "type_name", 0, d);
-            current_type_vars.push_back(p);
-            env[string($1)] = p;
+            Node * p = create_var($1, current_var_type, true, 0, d);
         }
-        current_dimensions = vector<pair<int, int>>();
     }
     ;
 
 Bounds:
     Bounds COMMA Bound
+    {
+        $$ = $1;
+        $$->d[$$->dimensions][0] = $3->first;
+        $$->d[$$->dimensions][1] = $3->second;
+        $$->dimensions = $$->dimensions + 1;
+        free($3);
+    }
     | Bound
+    {
+        $$ = (struct BoundStruct *)malloc(sizeof(struct BoundStruct));
+        $$->dimensions = 1;
+        $$->d[0][0] = $1->first;
+        $$->d[0][1] = $1->second;
+        free($1);
+    }
     ;
 
 Bound:
-    NUMBER COLON NUMBER { current_dimensions.push_back(make_pair($1, $3)); }
+    NUMBER COLON NUMBER
+    {
+        if ($1 > $3) yyerror("error: lower bound larger than higher bound");
+        $$ = (struct PairStruct *)malloc(sizeof(struct PairStruct));
+        $$->first = $1;
+        $$->second = $3;
+    }
     ;
 
 Stmts:
@@ -196,7 +224,7 @@ Stmt:
     Reference BIND Expr SEMICOLON { $$ = create_op(BIND, 2, $1, $3); }
     | LEFTBRACE Stmts RIGHTBRACE { $$= $2; }
     | WHILE LEFTPARENTHESIS Bool RIGHTPARENTHESIS LEFTBRACE Stmts RIGHTBRACE { $$ = create_op(WHILE, 2, $3, $6); }
-    | FOR NAME BIND Expr TO Expr BY Expr LEFTBRACE Stmts RIGHTBRACE { int d[10]; $$ = create_op(FOR, 5, get_var($2, 0, d), $4, $6, $8, $10); }
+    | FOR NAME BIND Expr TO Expr BY Expr LEFTBRACE Stmts RIGHTBRACE { $$ = create_op(FOR, 5, get_var($2), $4, $6, $8, $10); }
     | IF LEFTPARENTHESIS Bool RIGHTPARENTHESIS THEN Stmt %prec IFX { $$ = create_op(IF, 2, $3, $6); }
     | IF LEFTPARENTHESIS Bool RIGHTPARENTHESIS THEN Stmt ELSE Stmt { $$ = create_op(IF, 3, $3, $6, $8); }
     | READ Reference SEMICOLON { $$ = create_op(READ, 1, $2); }
@@ -252,13 +280,19 @@ Factor:
     ;
 
 Reference:
-    NAME LEFTBRACKET Exprs RIGHTBRACKET { int d[10]; $$ = get_var($1, 0, d); }
-    | NAME { int d[10]; $$ = get_var($1, 0, d); }
+    NAME LEFTBRACKET Exprs RIGHTBRACKET
+    {
+        Node * var = get_var($1);
+        if (var->var.dimensions != $3->op.num_ops)
+            yyerror(("error: variable '" + string($1) + "' has " + to_string(var->var.dimensions) + " dimension(s)").c_str());
+        $$ = create_op(LEFTBRACKET, 2, var, $3);
+    }
+    | NAME { $$ = get_var($1); }
     ;
 
 Exprs:
-    Expr COMMA Exprs
-    | Expr
+    Exprs COMMA Expr { $1->op.ops[$1->op.num_ops++] = $3; $$ = $1; }
+    | Expr { $$ = create_op(COMMA, 1, $1); }
     ;
 
 %%
@@ -328,9 +362,16 @@ void print_env()
     cout << "Name      Addr      Type      Dimensions" << endl;
     for (auto it = env.begin(); it != env.end(); ++it)
     {
-        printf("%-10s%-10s%-10s", it->second->var.name, it->second->var.reg, it->second->var.type);
-        //for (auto it2 = it->dimensions.begin(); it2 != it->dimensions.end(); ++it2)
-        //    printf("%d:%d ", it2->first, it2->second);
+        if (it->second->var.is_reg)
+        {
+            printf("%-10s%-10s%-10s", it->second->var.name, it->second->var.reg, it->second->var.type);
+        }
+        else
+        {
+            printf("%-10s%-10d%-10s", it->second->var.name, it->second->var.addr, it->second->var.type);
+            for (int i = 0; i < it->second->var.dimensions; i++)
+                printf("%d:%d ", it->second->var.d[i][0], it->second->var.d[i][1]);
+        }
         printf("\n");
     }
 }
@@ -347,22 +388,34 @@ Node * create_constant(int value, bool charconst)
     return p;
 }
 
-Node * create_var(const char * name, const char * type, int dimensions, int d[10][2])
+Node * create_var(const char * name, const char * type, bool is_reg, int dimensions, int d[10][2])
 {
     Node * p;
     p = (Node *)malloc(sizeof(Node));
     p->type = NodeTypeVar;
     p->var.name = strdup(name);
     p->var.type = strdup(type);
-    char reg[10];
-    sprintf(reg, "r%d", reg_id++);
-    p->var.reg = strdup(reg);
+    p->var.is_reg = is_reg;
     p->var.dimensions = dimensions;
-    for (int i = 0; i < dimensions; i++)
+    if (is_reg)
     {
-        p->var.d[i][0] = d[i][0];
-        p->var.d[i][1] = d[i][1];
+        char reg[10];
+        sprintf(reg, "r%d", reg_id++);
+        p->var.reg = strdup(reg);
     }
+    else
+    {
+        p->var.addr = offset;
+        int k = (strcmp(type, "char") == 0)? 1: 4;
+        for (int i = 0; i < dimensions; i++)
+        {
+            p->var.d[i][0] = d[i][0];
+            p->var.d[i][1] = d[i][1];
+            k = k * (d[i][1] - d[i][0] + 1);
+        }
+        offset = offset + k;
+    }
+    env[string(name)] = p;
     return p;
 }
 
@@ -382,22 +435,11 @@ Node * create_op(int op_type, int num_ops, ...)
     return p;
 }
 
-Node * get_var(const char * name, int dimensions, int d[])
+Node * get_var(const char * name)
 {
     if (env.count(string(name)) == 0)
         yyerror(("error: variable '" + string(name) + "' is not declared").c_str());
-    Node * p = env[string(name)];
-    if (p->var.dimensions != dimensions)
-        yyerror(("error: variable '" + string(name) + "' has " + to_string(p->var.dimensions) + " dimension(s)").c_str());
-    Node * ref = (Node *)malloc(sizeof(Node));
-    ref->type = NodeTypeRef;
-    ref->ref.var = p->var;
-    ref->ref.dimensions = dimensions;
-    for (int i = 0; i < dimensions; i++)
-    {
-        ref->ref.d[i] = d[i];
-    }
-    return ref;
+    return env[string(name)];
 }
 
 
