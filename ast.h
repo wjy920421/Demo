@@ -47,7 +47,7 @@ Node * create_constant(int value, bool charconst);
 Node * create_var(const char * name, const char * type, bool is_reg, int dimensions, int d[10][2]);
 Node * create_op(int op_type, int num_ops, ...);
 Node * get_var(const char * name);
-void print_env();
+void print_env(FILE * fp);
 Node * execute(Node *p);
 
 

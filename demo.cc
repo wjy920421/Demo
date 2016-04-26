@@ -10,7 +10,7 @@ int main(int argc, char ** argv)
     {
         printf("Usage: %s [filename]\n", argv[0]);
         printf("       [-h]        Display available options.\n");
-        printf("       [filename]  The filename to be parsed.\n");
+        printf("       [filename]  The file to be compiled.\n");
         printf("                   The program will read from stdin if it is missing.\n");
         return -1;
     }

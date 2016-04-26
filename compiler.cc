@@ -5,6 +5,8 @@
 #include "parser.tab.h"
 #include "ast.h"
 
+extern bool debug;
+
 extern int reg_id;
 
 static int label_id;
@@ -21,7 +23,7 @@ void gen_code(const char *format, ...)
     strcat(asm_code, str);
     strcat(asm_code, "\n");
 
-    printf("%s\n", str);
+    if (debug) printf("%s\n", str);
 }
 
 Node * create_temp_reg(const char * type)
@@ -190,12 +192,54 @@ Node * execute(Node * p, Node * ret)
 
                     return result;
                 }
+                case READ:
+                {
+                    Node * ref = p->op.ops[0];
+                    if (ref->type == NodeTypeVar)
+                    {
+                        if (strcmp(ref->var.type, "int") == 0)
+                        {
+                            gen_code("        read => %s", ref->var.reg);
+                        }
+                        else if (strcmp(ref->var.type, "char") == 0)
+                        {
+                            gen_code("        cread => %s", ref->var.reg);
+                        }
+                    }
+                    else
+                    {
+                        Node * temp;
+                        if (strcmp(ref->op.ops[0]->var.type, "int") == 0)
+                        {
+                            temp = create_temp_reg("int");
+                            gen_code("        read => %s", temp->var.reg);
+                        }
+                        else
+                        {
+                            temp = create_temp_reg("char");
+                            gen_code("        cread => %s", temp->var.reg);
+                        }
+                        execute(create_op(BIND, 2, ref, temp));
+                    }
+                    return ref;
+                }
                 case BIND:
                 {
                     Node * ref = p->op.ops[0];
                     Node * expr = execute(p->op.ops[1]);
 
-                    if (ref->op.op_type == LEFTBRACKET)
+                    if (ref->type == NodeTypeVar)
+                    {
+                        if (expr->type == NodeTypeConstant)
+                        {
+                            load_constant(ref, expr);
+                        }
+                        else
+                        {
+                            copy_reg(ref, expr);
+                        }
+                    }
+                    else
                     {
                         Node * addr = get_addr(ref);
                         if (expr->type == NodeTypeConstant) expr = load_constant(expr);
@@ -205,18 +249,7 @@ Node * execute(Node * p, Node * ret)
                         }
                         else
                         {
-                            gen_code("        cload %s => %s", expr->var.reg, addr->var.reg);
-                        }
-                    }
-                    else
-                    {
-                        if (expr->type == NodeTypeConstant)
-                        {
-                            load_constant(ref, expr);
-                        }
-                        else
-                        {
-                            copy_reg(ref, expr);
+                            gen_code("        cstore %s => %s", expr->var.reg, addr->var.reg);
                         }
                     }
                     return ref;

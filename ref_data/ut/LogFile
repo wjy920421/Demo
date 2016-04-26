@@ -1,0 +1,65 @@
+LogFile is unbuffered.
+
+COMP 506 DEMO Compiler
+Run on 'sky.clear.rice.edu' at Mon Apr 25 16:50:03 2016
+Using code base R02.00
+
+File disposition:
+	opening file 'ut3.demo'
+	Storage layout file (ut3.sl) is unbuffered.
+	Code file (ut3.i) is unbuffered.
+	stdout is unbuffered.
+
+'b' declared with [1,10,1,30]
+Parser, line 4: Multiple declarations for variable 'c'
+	lexeme is ';'.
+
+-> Assignment: 	dst is <'a' (1), int, r0,  perm>
+		and src is <??, int, r-1, literal: 1,  temp>.
+
+CheckScalarRef(<'b' (2), int, addr: 4,  perm>)
+	reveals scalar use of dimensioned variable.
+--> serious semantic error reported.
+Parser, line 6: Array variable 'b' referenced as a scalar.
+	lexeme is '='.
+
+-> Assignment: 	dst is <'b' (2), int, addr: 4,  perm>
+		and src is <??, int, r-1, literal: 1,  temp>.
+
+CheckArrayRef(<'a' (1), int, r0,  perm>)
+	reveals array use of scalar variable--> serious semantic error reported.
+Parser, line 7: Scalar variable 'a' referenced as an array.
+	lexeme is ']'.
+-> GetLValueForArray: <'a' (1), int, r0,  perm>.
+
+-> Assignment: 	dst is <'a' (1), int, r0,  perm>
+		and src is <??, int, r-1, literal: 1,  temp>.
+-> GetLValueForArray: <'b' (2), int, addr: 4,  perm>.
+GetLValueForArray()
+--> Found b[1:10,1:30]
+	compute <??, int, r-1, literal: 1,  temp> - 1
+	compute <??, int, r-1, literal: 3,  temp> - 1
+
+-> Assignment: 	dst is <??, int, r6,  addr (temp)>
+		and src is <??, int, r7,  temp>.
+Parser, line 9: b has 2 dimensions but is used with 3 subscripts
+	lexeme is ']'.
+-> GetLValueForArray: <'b' (2), int, addr: 4,  perm>.
+GetLValueForArray()
+--> Found b[1:10,1:30]
+	compute <??, int, r-1, literal: 1,  temp> - 1
+	compute <??, int, r-1, literal: 3,  temp> - 1
+	compute <??, int, r-1, literal: 5,  temp> - 18297712
+Need to get:
+	<??, int, r-1, literal: 5,  temp>
+in a register.
+
+-> Assignment: 	dst is <??, int, r11,  addr (temp)>
+		and src is <??, int, r-1, literal: 0,  temp>.
+Need to get:
+	<??, int, r-1, literal: 0,  temp>
+in a register.
+
+Parser fails with 4 error messages.
+Execution halts.
+Due to errors, deleting files ut3.i and ut3.sl

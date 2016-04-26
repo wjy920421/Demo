@@ -3,9 +3,11 @@ Jingyu Wang (jw76)
 
 Code
 ====
-demo.c      driver of the parser
-lexer.l     flex scanner
-parser.y    bison parser
+demo.cc         driver of the parser
+lexer.l         flex scanner
+parser.y        bison parser
+compiler.cc     compiler that generates ILOC instuctions
+ash.h           abstract syntax tree and other definitions
 
 
 Build
@@ -21,5 +23,5 @@ After the program is built, an executable named "demo" will appear in the projec
 
 Test
 ====
-A test script named "test.sh" is also provided. It will find all the ".demo" source files in the directory and parse them with the program. The parsing results will be printed to stdout. 
-Most test files are located inside "test_data". Two additional test programs, "test_program_1.demo" and "test_program_2.demo", are placed in the root directory. 
+A test script named "test.sh" is also provided. It first compiles all the ".demo" source files in "test_data" directory. Then it runs simulation for all output files in "test_data" and compares the results with the corresponding output files in "ref_data" directory. 
+Two additional test programs, "test_program_1.demo" and "test_program_2.demo", are placed in the root directory. 

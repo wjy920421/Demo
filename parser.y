@@ -17,12 +17,12 @@ extern char asm_code[500000];
 
 
 
-
+bool debug = false;
 
 int reg_id = 0;
 unordered_map<string, Node *> env;
 
-char * output_filename;
+char * filename_base;
 
 void save();
 int parser(const char * filename);
@@ -135,12 +135,17 @@ Procedure:
     {
         execute($6);
 
-        save();
 
         if (error_count == 0)
-            printf("\nProgram compiled: \n\n");
+        {
+            save();
+            printf("Program compiled to: %s.i\n", filename_base);
+            printf("Storage layout saved to: %s.sl\n", filename_base);
+        }
         else
-            printf("\n%d error%s generated\n\n", error_count, (error_count==1)? "": "s");
+        {
+            printf("%d error%s generated\n", error_count, (error_count==1)? "": "s");
+        }
     }
     ;
 
@@ -284,10 +289,17 @@ Reference:
     {
         Node * var = get_var($1);
         if (var->var.dimensions != $3->op.num_ops)
-            yyerror(("error: variable '" + string($1) + "' has " + to_string(var->var.dimensions) + " dimension(s)").c_str());
+            yyerror(("error: variable '" + string($1) + "' has " + to_string(var->var.dimensions) + " dimension(s), "
+                + "but is referenced with " + to_string($3->op.num_ops) + " subscript(s)").c_str());
         $$ = create_op(LEFTBRACKET, 2, var, $3);
     }
-    | NAME { $$ = get_var($1); }
+    | NAME
+    {
+        $$ = get_var($1);
+        if ($$->var.dimensions != 0)
+            yyerror(("error: variable '" + string($1) + "' has " + to_string($$->var.dimensions) + " dimension(s), "
+                + "but is referenced with 0 subscript").c_str());
+    }
     ;
 
 Exprs:
@@ -301,8 +313,6 @@ Exprs:
 
 int parser(const char * filename)
 {
-    printf("\n");
-
     if (filename != NULL)
     {
         FILE * file = fopen(filename, "r");
@@ -314,13 +324,13 @@ int parser(const char * filename)
         yyin = file;
         printf("Loaded Demo program from: %s \n", filename);
 
-        output_filename = strdup((string(filename).substr(0, string(filename).find_last_of(".")) + ".i").c_str()); 
+        filename_base = strdup((string(filename).substr(0, string(filename).find_last_of("."))).c_str()); 
     }
     else
     {
         printf("No file is specified. The program will read from stdin.\n");
 
-        output_filename = strdup("stdin.i");
+        filename_base = strdup("stdin");
     }
 
     line_count = 1;
@@ -333,21 +343,32 @@ int parser(const char * filename)
     }
     while (!feof(yyin));
 
-    print_env();
+    if (debug) print_env(stdout);
 
     return 0;
 }
 
 void save() 
 {
-    FILE * file = fopen(output_filename, "w+");
+    char * filename_i = strdup((string(filename_base) + ".i").c_str());
+    FILE * file = fopen(filename_i, "w+");
     if (!file)
     {
-        fprintf(stderr, "Failed to open %s\n", output_filename);;
+        fprintf(stderr, "Failed to open %s\n", filename_i);;
         return;
     }
     fputs(asm_code, file);
     fclose(file);
+
+    char * filename_sl = strdup((string(filename_base) + ".sl").c_str());
+    FILE * file2 = fopen(filename_sl, "w+");
+    if (!file2)
+    {
+        fprintf(stderr, "Failed to open %s\n", filename_sl);;
+        return;
+    }
+    print_env(file2);
+    fclose(file2);
 }
 
 void yyerror(const char * s) 
@@ -356,24 +377,27 @@ void yyerror(const char * s)
     error_count++;
 }
 
-void print_env()
+void print_env(FILE * fp)
 {
-    cout << "Storage Layout" << endl;
-    cout << "Name      Addr      Type      Dimensions" << endl;
+    fprintf(fp, "Storage Layout\n");
+    fprintf(fp, "----------------------------------------------\n");
+    fprintf(fp, "Name            Addr      Type      Dimensions\n");
+    fprintf(fp, "----------------------------------------------\n");
     for (auto it = env.begin(); it != env.end(); ++it)
     {
         if (it->second->var.is_reg)
         {
-            printf("%-10s%-10s%-10s", it->second->var.name, it->second->var.reg, it->second->var.type);
+            fprintf(fp, "%-16s%-10s%-10s", it->second->var.name, it->second->var.reg, it->second->var.type);
         }
         else
         {
-            printf("%-10s%-10d%-10s", it->second->var.name, it->second->var.addr, it->second->var.type);
+            fprintf(fp, "%-16s%-10d%-10s", it->second->var.name, it->second->var.addr, it->second->var.type);
             for (int i = 0; i < it->second->var.dimensions; i++)
-                printf("%d:%d ", it->second->var.d[i][0], it->second->var.d[i][1]);
+                fprintf(fp, "%d:%d ", it->second->var.d[i][0], it->second->var.d[i][1]);
         }
-        printf("\n");
+        fprintf(fp, "\n");
     }
+    fprintf(fp, "----------------------------------------------\n");
 }
 
 #define SIZEOF_NODETYPE ((char *)&p->con - (char *)p)

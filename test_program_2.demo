@@ -9,13 +9,26 @@ procedure knapsack
 
     int i,j;
     int n, W;
-    int m[1:10000, 1:10000];
-    int v[1:10000], w[1:10000];
+    int v[1:100], w[1:100];
+    int m[1:100, 1:100];
 
+    write 'n';
     read n;
+
+    write 'W';
     read W;
-    read v;
-    read w;
+
+    write 'v';
+    for i = 1 to n by 1
+    {
+        read v[i];
+    }
+
+    write 'w';
+    for i = 1 to W by 1
+    {
+        read w[i];
+    }
 
     for j = 0 to W by 1
     {
@@ -44,5 +57,12 @@ procedure knapsack
         }
     }
 
-    write m;
+    for i = 1 to n by 1
+    {
+        for j = 0 to W by 1
+        {
+            write m[i,j];
+        }
+    }
+    
 }

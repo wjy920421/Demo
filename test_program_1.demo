@@ -1,19 +1,27 @@
 // test DEMO program
-procedure program1 {
+procedure reverse {
     
-    int temp;
-    int num[1:100]; // array
+    int i, n;
+    char temp, ch[1:10000]; // array
 
-    read num; // read array
+    read n; // read number
 
-    for i = 1 to 100 / 2 by 1
+    for i = 1 to n by 1
     {
-        temp = num[i];
-        num[i] = num[101-i];
-        num[101-i] = temp;
+        read ch[i]; // read array
     }
 
-    write num; // write array
+    for i = 1 to n / 2 by 1 // swap
+    {
+        temp = ch[i];
+        ch[i] = ch[n+1-i];
+        ch[n+1-i] = temp;
+    }
+
+    for i = 1 to n by 1
+    {
+        write ch[i]; // print array
+    }
 }
 
 

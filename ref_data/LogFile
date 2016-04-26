@@ -1,0 +1,190 @@
+LogFile is unbuffered.
+
+COMP 506 DEMO Compiler
+Run on 'sky.clear.rice.edu' at Mon Apr 25 17:00:02 2016
+Using code base R02.00
+
+File disposition:
+	opening file './DocExample.demo'
+	Storage layout file (./DocExample.sl) is unbuffered.
+	Code file (./DocExample.i) is unbuffered.
+	stdout is unbuffered.
+
+'DATA' declared with [0,10000]
+
+emit_read(): <'upper' (3), int, r1,  perm>.
+
+Need to get:
+	<??, int, r-1, literal: 10000,  temp>
+in a register.
+in I-T-E control logic, RelExpr is:
+	<??, boolean, r5,  temp>
+
+-> Assignment: 	dst is <'upper' (3), int, r1,  perm>
+		and src is <??, int, r-1, literal: 0,  temp>.
+-> CHARCONST has value 'd' (100).
+
+emit_write() : <??, char, r-1, literal: 100,  temp>.
+
+Need to get:
+	<??, char, r-1, literal: 100,  temp>
+in a register.
+-> CHARCONST has value 'a' (97).
+
+emit_write() : <??, char, r-1, literal: 97,  temp>.
+
+Need to get:
+	<??, char, r-1, literal: 97,  temp>
+in a register.
+-> CHARCONST has value 't' (116).
+
+emit_write() : <??, char, r-1, literal: 116,  temp>.
+
+Need to get:
+	<??, char, r-1, literal: 116,  temp>
+in a register.
+-> CHARCONST has value 'a' (97).
+
+emit_write() : <??, char, r-1, literal: 97,  temp>.
+
+Need to get:
+	<??, char, r-1, literal: 97,  temp>
+in a register.
+-> CHARCONST has value ' ' (32).
+
+emit_write() : <??, char, r-1, literal: 32,  temp>.
+
+Need to get:
+	<??, char, r-1, literal: 32,  temp>
+in a register.
+Start of for loop, nesting depth: 1.
+In ForUB production (nesting depth 1).
+In ForIncr production (nesting depth 1).
+In ForHead production (nesting depth 1).
+
+In ForHead Production:
+	index:	 <'i' (2), int, r0,  perm>
+	LB:	 <??, int, r-1, literal: 0,  temp>
+	UB:	<??, int, r16,  temp>
+	INCR	<??, int, r-1, literal: 1,  temp>
+
+IN append_to_buffer()
+	copying 'UB expression of for loop' into 'primary code buffer'
+	--> sufficient space
+	--> source contains 1 ops.
+-> GetLValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+GetLValueForArray()
+--> Found DATA[0:10000]
+	compute <'i' (2), int, r0,  perm> - 0
+
+emit_read(): <??, int, r20,  addr (temp)>.
+
+
+ read from <??, int, r21,  temp>
+ into <??, int, r20,  addr (temp)>
+-> loop bottom: should compare r0 or r-1 and r16.
+
+-> Freeing values & registers after the loop.
+
+-> Assignment: 	dst is <'flag' (4), int, r2,  perm>
+		and src is <??, int, r-1, literal: 1,  temp>.
+Need to get:
+	<??, int, r-1, literal: 1,  temp>
+in a register.
+IN append_to_buffer()
+	copying 'while loop expression' into 'primary code buffer'
+	--> sufficient space
+	--> source contains 2 ops.
+
+-> Assignment: 	dst is <'flag' (4), int, r2,  perm>
+		and src is <??, int, r-1, literal: 0,  temp>.
+Start of for loop, nesting depth: 2.
+In ForUB production (nesting depth 2).
+In ForIncr production (nesting depth 2).
+In ForHead production (nesting depth 2).
+
+In ForHead Production:
+	index:	 <'i' (2), int, r0,  perm>
+	LB:	 <??, int, r-1, literal: 0,  temp>
+	UB:	<??, int, r25,  temp>
+	INCR	<??, int, r-1, literal: 1,  temp>
+
+IN append_to_buffer()
+	copying 'UB expression of for loop' into 'primary code buffer'
+	--> sufficient space
+	--> source contains 1 ops.
+-> GetRValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+-> GetLValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+GetLValueForArray()
+--> Found DATA[0:10000]
+	compute <'i' (2), int, r0,  perm> - 0
+-> GetRValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+-> GetLValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+GetLValueForArray()
+--> Found DATA[0:10000]
+	compute <??, int, r31,  temp> - 0
+in I-T-E control logic, RelExpr is:
+	<??, boolean, r36,  temp>
+
+-> Assignment: 	dst is <'flag' (4), int, r2,  perm>
+		and src is <??, int, r-1, literal: 1,  temp>.
+-> GetRValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+-> GetLValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+GetLValueForArray()
+--> Found DATA[0:10000]
+	compute <'i' (2), int, r0,  perm> - 0
+
+-> Assignment: 	dst is <'temp' (5), int, r3,  perm>
+		and src is <??, int, r40,  temp>.
+-> GetLValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+GetLValueForArray()
+--> Found DATA[0:10000]
+	compute <'i' (2), int, r0,  perm> - 0
+-> GetRValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+-> GetLValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+GetLValueForArray()
+--> Found DATA[0:10000]
+	compute <??, int, r44,  temp> - 0
+
+-> Assignment: 	dst is <??, int, r43,  addr (temp)>
+		and src is <??, int, r48,  temp>.
+-> GetLValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+GetLValueForArray()
+--> Found DATA[0:10000]
+	compute <??, int, r49,  temp> - 0
+
+-> Assignment: 	dst is <??, int, r52,  addr (temp)>
+		and src is <'temp' (5), int, r3,  perm>.
+-> loop bottom: should compare r0 or r-1 and r25.
+
+-> Freeing values & registers after the loop.
+IN append_to_buffer()
+	copying 'while loop expression' into 'primary code buffer'
+	--> sufficient space
+	--> source contains 2 ops.
+Start of for loop, nesting depth: 2.
+In ForUB production (nesting depth 2).
+In ForIncr production (nesting depth 2).
+In ForHead production (nesting depth 2).
+
+In ForHead Production:
+	index:	 <'i' (2), int, r0,  perm>
+	LB:	 <??, int, r-1, literal: 0,  temp>
+	UB:	<??, int, r54,  temp>
+	INCR	<??, int, r-1, literal: 1,  temp>
+
+IN append_to_buffer()
+	copying 'UB expression of for loop' into 'primary code buffer'
+	--> sufficient space
+	--> source contains 1 ops.
+-> GetRValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+-> GetLValueForArray: <'DATA' (1), int, addr: 4,  perm>.
+GetLValueForArray()
+--> Found DATA[0:10000]
+	compute <'i' (2), int, r0,  perm> - 0
+
+emit_write() : <??, int, r59,  temp>.
+
+-> loop bottom: should compare r0 or r-1 and r54.
+
+-> Freeing values & registers after the loop.
