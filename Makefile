@@ -1,12 +1,12 @@
-CC = g++
+CC = clang++
 LEX = flex
 YACC = bison -d -v
 
 OS := $(shell uname)
 ifeq ($(OS), Darwin)
-LDFLAGS = -ll -g -w
+LDFLAGS = -ll -g -w -std=c++11
 else
-LDFLAGS = -lfl -g -w
+LDFLAGS = -lfl -g -w -std=c++11
 endif
 
 demo: demo.cc compiler.cc parser.tab.c lexer.c

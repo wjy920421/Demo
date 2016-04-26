@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <string.h>
 #include "ast.h"
 
 using namespace std;
