@@ -4,9 +4,9 @@ YACC = bison -d -v
 
 OS := $(shell uname)
 ifeq ($(OS), Darwin)
-LDFLAGS = -ll -std=c++11 -Wno-deprecated-register -g -w
+LDFLAGS = -ll -g -w
 else
-LDFLAGS = -lfl -std=c++11 -Wno-deprecated-register -g -w
+LDFLAGS = -lfl -g -w
 endif
 
 demo: demo.cc compiler.cc parser.tab.c lexer.c

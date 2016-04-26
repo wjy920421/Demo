@@ -5,6 +5,8 @@
 #include "parser.tab.h"
 #include "ast.h"
 
+#define NULL 0
+
 extern bool debug;
 
 extern int reg_id;
@@ -80,7 +82,7 @@ Node * execute(Node * p, Node * ret);
 
 Node * execute(Node * p)
 {
-    return execute(p, nullptr);
+    return execute(p, NULL);
 }
 
 Node * get_addr(Node * p)
@@ -103,7 +105,7 @@ Node * get_addr(Node * p)
 
 Node * execute(Node * p, Node * ret)
 {
-    if (!p) return nullptr;
+    if (!p) return NULL;
 
     switch(p->type)
     {
